@@ -12,6 +12,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     var backTapGesture: UITapGestureRecognizer?
     var basketballNode: SCNNode?
     var panGesture: UIPanGestureRecognizer?
+    var titleTextNode: SCNNode?
+    var subtitleTextNode: SCNNode?
     
     // Text animation properties
     let titleText = "Stress Busters"
@@ -21,11 +23,6 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     var titleTimer: Timer?
     var subtitleTimer: Timer?
     
-    // Typing animation properties
-    let welcomeText = "Welcome Astronaut!"
-    var typingIndex = 0
-    var typingTimer: Timer?
-
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -40,8 +37,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Set up physics for space simulation
         sceneView.scene.physicsWorld.gravity = SCNVector3(0, 0, 0) // Zero gravity for space
         
-        // Create and add text node with typing animation
-        createTypingTextNode()
+        // Create and add text node
+        createTextNode()
         
         // Create and add button nodes
         createButtonNodes()
@@ -58,46 +55,20 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.session.run(configuration)
     }
     
-    func createTypingTextNode() {
-        textNode = SCNNode()
-        textNode?.position = SCNVector3(-0.2, 0, -1)
-        sceneView.scene.rootNode.addChildNode(textNode!)
-        
-        startTypingAnimation()
-    }
-    
-    func startTypingAnimation() {
-        typingIndex = 0
-        
-        // Clear existing text nodes by iterating through the child nodes
-        textNode?.childNodes.forEach { $0.removeFromParentNode() }
-        
-        typingTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] timer in
-            guard let self = self else { return }
-            if self.typingIndex < self.welcomeText.count {
-                let character = String(self.welcomeText[self.welcomeText.index(self.welcomeText.startIndex, offsetBy: self.typingIndex)])
-                self.addCharacter(character)
-                self.typingIndex += 1
-            } else {
-                timer.invalidate() // Stop the timer when done
-                self.typingTimer = nil
-            }
-        }
-    }
-
-    
-    func addCharacter(_ character: String) {
-        let text = SCNText(string: character, extrusionDepth: 1.0)
+    func createTextNode() {
+        let text = SCNText(string: "Welcome Astronaut!", extrusionDepth: 1.0)
         
         let material = SCNMaterial()
         material.diffuse.contents = UIColor.white
         text.materials = [material]
         
-        let characterNode = SCNNode(geometry: text)
-        characterNode.scale = SCNVector3(0.01, 0.01, 0.01)
-        characterNode.position = SCNVector3(-0.2 + Float(typingIndex) * 0.05, 0, -1) // Adjust positioning for spacing
+        textNode = SCNNode(geometry: text)
+        textNode?.scale = SCNVector3(0.01, 0.01, 0.01)
+        textNode?.position = SCNVector3(-0.2, 0, -1)
         
-        textNode?.addChildNode(characterNode)
+        if let textNode = textNode {
+            sceneView.scene.rootNode.addChildNode(textNode)
+        }
     }
     
     func createButtonNodes() {
@@ -188,142 +159,138 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     
     @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
-        guard let basketballNode = basketballNode else { return }
-        
-        switch gesture.state {
-        case .began:
-            basketballNode.physicsBody?.isAffectedByGravity = false
-            basketballNode.physicsBody?.velocity = SCNVector3Zero
+            guard let basketballNode = basketballNode else { return }
             
-        case .changed:
-            let translation = gesture.translation(in: sceneView)
-            let currentPosition = basketballNode.position
-            
-            // Convert pan gesture movement to 3D space
-            let movementSpeed: Float = 0.001
-            let newPosition = SCNVector3(
-                currentPosition.x + Float(translation.x) * movementSpeed,
-                currentPosition.y - Float(translation.y) * movementSpeed,
-                currentPosition.z
-            )
-            
-            basketballNode.position = newPosition
-            gesture.setTranslation(.zero, in: sceneView)
-            
-        case .ended:
-            let velocity = gesture.velocity(in: sceneView)
-            let velocityScale: Float = 0.0005 // Adjust this value to change throw sensitivity
-            
-            // Apply velocity based on gesture movement
-            let throwVelocity = SCNVector3(
-                Float(velocity.x) * velocityScale,
-                -Float(velocity.y) * velocityScale,
-                0
-            )
-            
-            // Create random rotation axis and angle
-            let randomX = Float.random(in: -1...1)
-            let randomY = Float.random(in: -1...1)
-            let randomZ = Float.random(in: -1...1)
-            let randomAngle = Float.random(in: 0...Float.pi * 2)
-            
-            // Create SCNVector4 for angular velocity (x, y, z, w) where w is the rotation angle
-            let angularVelocity = SCNVector4(randomX, randomY, randomZ, randomAngle)
-            
-            basketballNode.physicsBody?.applyForce(throwVelocity, at: SCNVector3Zero, asImpulse: true)
-            basketballNode.physicsBody?.angularVelocity = angularVelocity // Apply random spin
-            
-            basketballNode.physicsBody?.isAffectedByGravity = true // Allow gravity again
-            
-        default:
-            break
+            switch gesture.state {
+            case .began:
+                basketballNode.physicsBody?.isAffectedByGravity = false
+                basketballNode.physicsBody?.velocity = SCNVector3Zero
+                
+            case .changed:
+                let translation = gesture.translation(in: sceneView)
+                let currentPosition = basketballNode.position
+                
+                // Convert pan gesture movement to 3D space
+                let movementSpeed: Float = 0.001
+                let newPosition = SCNVector3(
+                    currentPosition.x + Float(translation.x) * movementSpeed,
+                    currentPosition.y - Float(translation.y) * movementSpeed,
+                    currentPosition.z
+                )
+                
+                basketballNode.position = newPosition
+                gesture.setTranslation(.zero, in: sceneView)
+                
+            case .ended:
+                let velocity = gesture.velocity(in: sceneView)
+                let velocityScale: Float = 0.0005 // Adjust this value to change throw sensitivity
+                
+                // Apply velocity based on gesture movement
+                let throwVelocity = SCNVector3(
+                    Float(velocity.x) * velocityScale,
+                    -Float(velocity.y) * velocityScale,
+                    0
+                )
+                
+                // Create random rotation axis and angle
+                let randomX = Float.random(in: -1...1)
+                let randomY = Float.random(in: -1...1)
+                let randomZ = Float.random(in: -1...1)
+                let randomAngle = Float.random(in: 0...Float.pi * 2)
+                
+                // Create SCNVector4 for angular velocity (x, y, z, w) where w is the rotation angle
+                let angularVelocity = SCNVector4(randomX, randomY, randomZ, randomAngle)
+                
+                basketballNode.physicsBody?.angularVelocity = angularVelocity
+                basketballNode.physicsBody?.velocity = throwVelocity
+                
+            default:
+                break
+            }
         }
-    }
     
     func addMainTapGesture() {
-        mainTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleMainTap(_:)))
+        if let mainTapGesture = mainTapGesture {
+            sceneView.removeGestureRecognizer(mainTapGesture)
+        }
+        mainTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         if let mainTapGesture = mainTapGesture {
             sceneView.addGestureRecognizer(mainTapGesture)
         }
     }
     
-    @objc func handleMainTap(_ gesture: UITapGestureRecognizer) {
-        // Switch to basketball scene
-        sceneView.scene.rootNode.enumerateChildNodes { (node, stop) in
-            node.removeFromParentNode() // Clear existing nodes
-        }
+    @objc func handleTap(_ gestureRecognizer: UITapGestureRecognizer) {
+        let tapLocation = gestureRecognizer.location(in: sceneView)
+        let hitTestResults = sceneView.hitTest(tapLocation, options: [.boundingBoxOnly: true])
         
-        // Re-create basketball node
-        createBasketball()
-        
-        // Remove tap gesture recognizer to prevent additional taps
-        if let mainTapGesture = mainTapGesture {
-            sceneView.removeGestureRecognizer(mainTapGesture)
-        }
-        
-        // Add back button
-        createBackButtonNode()
-    }
-    
-    func createBackButtonNode() {
-        let backButtonGeometry = SCNBox(width: 0.12, height: 0.12, length: 0.01, chamferRadius: 0.03)
-        let backButtonMaterial = SCNMaterial()
-        backButtonMaterial.diffuse.contents = UIColor(white: 1.0, alpha: 0.85)
-        backButtonGeometry.materials = [backButtonMaterial]
-        
-        backButtonNode = SCNNode(geometry: backButtonGeometry)
-        backButtonNode?.position = SCNVector3(0.0, -0.25, -1)
-        
-        sceneView.scene.rootNode.addChildNode(backButtonNode!)
-        
-        let backText = SCNText(string: "Back", extrusionDepth: 0.01)
-        let backTextMaterial = SCNMaterial()
-        backTextMaterial.diffuse.contents = UIColor.white
-        backText.materials = [backTextMaterial]
-        
-        let backTextNode = SCNNode(geometry: backText)
-        backTextNode.scale = SCNVector3(0.003, 0.003, 0.003)
-        backTextNode.position = SCNVector3(0.0, -0.25 - 0.12, -1)
-        
-        sceneView.scene.rootNode.addChildNode(backTextNode)
-        
-        // Enable back button tap gesture
-        addBackTapGesture()
-    }
-    
-    func addBackTapGesture() {
-        backTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleBackTap(_:)))
-        if let backTapGesture = backTapGesture {
-            sceneView.addGestureRecognizer(backTapGesture)
+        if let hitNode = hitTestResults.first?.node, let index = buttonNodes.firstIndex(of: hitNode) {
+            sceneView.scene.rootNode.enumerateChildNodes { (node, _) in
+                node.removeFromParentNode()
+            }
+            
+            if index == 0 {
+                let rectangleGeometry = SCNPlane(width: 0.5, height: 0.3)
+                let rectangleMaterial = SCNMaterial()
+                rectangleMaterial.diffuse.contents = UIColor(white: 1.0, alpha: 0.5)
+                rectangleGeometry.materials = [rectangleMaterial]
+                
+                let rectangleNode = SCNNode(geometry: rectangleGeometry)
+                rectangleNode.position = SCNVector3(0, 0, -1)
+                sceneView.scene.rootNode.addChildNode(rectangleNode)
+            } else if index == 1 {
+                createBasketball()
+            }
+            
+            createBackButton()
         }
     }
     
-    @objc func handleBackTap(_ gesture: UITapGestureRecognizer) {
-        // Remove basketball node and go back to the main screen
-        basketballNode?.removeFromParentNode()
+    func createBackButton() {
+        let backText = SCNText(string: "<", extrusionDepth: 0.1)
+        let backMaterial = SCNMaterial()
+        backMaterial.diffuse.contents = UIColor.white
+        backText.materials = [backMaterial]
         
-        // Clear other nodes and reset scene
-        sceneView.scene.rootNode.enumerateChildNodes { (node, stop) in
-            node.removeFromParentNode()
+        backButtonNode = SCNNode(geometry: backText)
+        backButtonNode?.scale = SCNVector3(0.01, 0.01, 0.01)
+        backButtonNode?.position = SCNVector3(-0.4, 0.2, -1)
+        
+        if let backButtonNode = backButtonNode {
+            sceneView.scene.rootNode.addChildNode(backButtonNode)
+            
+            if let backTapGesture = backTapGesture {
+                sceneView.removeGestureRecognizer(backTapGesture)
+            }
+            
+            backTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleBackTap(_:)))
+            if let backTapGesture = backTapGesture {
+                sceneView.addGestureRecognizer(backTapGesture)
+            }
         }
-        
-        // Re-create main screen text and buttons
-        createTypingTextNode()
-        createButtonNodes()
-        
-        // Remove back button
-        backButtonNode?.removeFromParentNode()
-        
-        // Remove back tap gesture
-        if let backTapGesture = backTapGesture {
-            sceneView.removeGestureRecognizer(backTapGesture)
-        }
-        
-        // Re-enable main tap gesture
-        addMainTapGesture()
     }
     
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
+    @objc func handleBackTap(_ gestureRecognizer: UITapGestureRecognizer) {
+        let tapLocation = gestureRecognizer.location(in: sceneView)
+        let hitTestResults = sceneView.hitTest(tapLocation, options: [.boundingBoxOnly: true])
+        
+        if let hitNode = hitTestResults.first?.node, hitNode == backButtonNode {
+            sceneView.scene.rootNode.enumerateChildNodes { (node, _) in
+                node.removeFromParentNode()
+            }
+            
+            createTextNode()
+            createButtonNodes()
+            addMainTapGesture()
+            
+            if let panGesture = panGesture {
+                sceneView.removeGestureRecognizer(panGesture)
+                self.panGesture = nil
+            }
+        }
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        sceneView.session.pause()
     }
 }
